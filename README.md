@@ -84,11 +84,22 @@ power), not just once at startup.
    you've set directly (e.g. via the Anker app) without unloading the
    integration — use it if anything looks wrong. `switch.predictive_charging_enabled`
    is a separate, narrower kill switch for just the grid-charging feature.
+7. Made a mistake, or need to change a sensor/battery entity later? Settings
+   → Devices & Services → Anker Solix Energy Manager → **Reconfigure** —
+   walks through the same setup steps pre-filled with your current config
+   and reloads in place, rather than needing a full remove-and-re-add (which
+   would also orphan the accumulated consumption history, since that's keyed
+   to the config entry).
+
+Available in English and Dutch (matches Home Assistant's own language
+setting automatically).
 
 ## Testing
 
-A 59-test pytest suite covers the pure control-logic modules directly and
-exercises the real wiring (adapter → PD → power distribution → capacity
+An 85-test pytest suite covers the pure control-logic modules directly,
+the config flow (setup validation, and the reconfigure flow end-to-end,
+including that it actually updates and reloads the entry), and exercises
+the real control-loop wiring (adapter → PD → power distribution → capacity
 protection → the actual `number`/`select` service calls) through
 `pytest-homeassistant-custom-component`'s `hass` fixture — this is a real,
 if minimal, Home Assistant core instance, not a hand-rolled mock of one.
@@ -105,23 +116,41 @@ incompatibilities with the pinned `pytest`/`pytest-asyncio` versions
 Assistant itself, only the test tooling).
 
 **What's covered:** the PD controller's deadband/rate-limiting/hysteresis/
-anti-windup behavior in isolation; capacity protection's projection math
-(including that it only ever adds discharge, never reduces one); 2-battery
-selection and proportional allocation, including the invariant that a
-battery's share can never exceed its own limit; consumption tracking's
-energy-balance derivation, day rollover, and save/load round-trip; EV
-exclusion and price-percentile/forecast-parsing edge cases; and — the most
-load-bearing tests — five end-to-end scenarios through the real control loop:
-a first-cycle discharge response, deadband suppressing writes, manual mode
-suppressing all writes, the mode-revert quirk being corrected in the right
-order, and capacity protection forcing discharge under a tight contracted
-limit. Building and running this suite caught two real bugs before either
-would have reached real hardware: `BatteryAdapter` being unhashable (broke
-the moment power distribution tried to use battery objects as dict keys —
-fixed with `@dataclass(eq=False)`), and a capacity-protection formula that
-didn't account for the previously-commanded power when projecting a new
-command's effect on grid import (fixed to take `previous_power_w`
-explicitly — see `capacity_protection.py`'s docstring).
+anti-windup/first-execution-ramp-in behavior in isolation; capacity
+protection's projection math (including that it only ever adds discharge,
+never reduces one); 2-battery selection and proportional allocation,
+including the invariant that a battery's share can never exceed its own
+limit; consumption tracking's energy-balance derivation, day rollover, and
+save/load round-trip; EV exclusion, price-percentile/forecast-parsing edge
+cases, and predictive charging's coverage gating and anti-chatter dwell
+time; the config flow's validation (empty/duplicate battery names,
+duplicate entities across batteries, the predictive-charging prerequisite
+checks) and the reconfigure flow end-to-end (pre-fill, update, reload,
+correct abort reason); and — the most load-bearing tests — end-to-end
+scenarios through the real control loop: a first-cycle discharge response,
+deadband suppressing writes, manual mode suppressing all writes, the
+mode-revert quirk being corrected in the right order, and capacity
+protection forcing discharge under a tight contracted limit.
+
+Across two review passes, building and running this suite caught real bugs
+before any reached real hardware. From the first pass: `BatteryAdapter`
+being unhashable (broke the moment power distribution tried to use battery
+objects as dict keys), and a capacity-protection formula that didn't
+account for the previously-commanded power when projecting a new command's
+effect on grid import. From a second, dedicated safety/correctness pass:
+a battery left executing its last command indefinitely on integration
+unload/reload/removal, with nothing left supervising it
+(`async_unload_entry` now zeroes every battery first); a race in the
+direction-flip write path where the new grid_flow direction could briefly
+apply against the old power magnitude; an asymmetric sign comparison in the
+PD anti-windup check that silently skipped re-anchoring when a battery
+commanded to discharge measured exactly 0W; and an unbounded first command
+on startup (now ramps in like every other PD step, instead of potentially
+slamming to full power the instant HA restarts mid-imbalance). That same
+pass added the reconfigure flow and its test coverage together, which
+caught its own bug on the way in — a form pre-fill regression where blank
+optional fields (price sensor, solar forecast, EV chargers, fixed slot
+times) would have failed validation — before it ever shipped.
 
 **What's not covered:** anything requiring live Anker hardware (the mode-
 revert timing, real Modbus TCP write latency/rate limits) or a live Frank
