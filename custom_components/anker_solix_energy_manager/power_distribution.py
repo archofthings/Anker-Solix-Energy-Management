@@ -1,9 +1,7 @@
 """Two-battery power distribution: which unit(s) run, and how much each gets.
 
-Simplified from `power_distribution.py` in ffunes/Marstek-Venus-Energy-Manager
-for the fixed 2-battery case (the reference handles up to 6 heterogeneous
-units; here `batteries` is always the configured pair). Kept from the
-original:
+Handles the fixed 2-battery case (`batteries` is always the configured
+pair, not an arbitrary-size fleet):
 
 - Proportional allocation by each battery's own power limit, with iterative
   redistribution of any excess onto the battery(ies) with headroom.

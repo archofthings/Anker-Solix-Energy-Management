@@ -159,13 +159,13 @@ schema — see the pricing note below).
   oscillation rate, active batteries, per-battery allocation, consumption,
   EV draw, current price).
 
-**Deliberately simplified vs. the Marstek reference this was designed
-against** (see each module's docstring for the specific reasoning):
+**Deliberate scope decisions** (see each module's docstring for the specific
+reasoning):
 - No integral (Ki) term in the PD controller — the incremental P term
   already behaves like integral action.
 - Consumption tracking doesn't model solar timing (sunrise/sunset/solar
   noon) — it uses a real solar forecast sensor (Solcast/Forecast.Solar)
-  instead, which the reference project didn't have available.
+  instead.
 - No hourly net-balance targeting (a specific non-zero grid target per hour)
   — the target is always 0.
 - No weekly full-charge / cell-balance scheduling — unclear this is even
@@ -183,8 +183,7 @@ been run against a live Home Assistant instance or real batteries yet:
 3. Safe write frequency for the Anker Modbus TCP interface — the default
    2s minimum cycle interval is a starting guess, not a validated value.
 4. Per-unit capacity/power specs (rated kWh, max charge/discharge W) — the
-   config flow defaults to 8000Wh / 3500W but these should be confirmed
-   against the actual Solarbank Max AC spec sheet or nameplate.
+   config flow defaults to 7000Wh / 3500W
 5. **Frank Energie's actual price sensor schema.** `pricing.py` deliberately
    avoids hardcoding attribute names it can't verify — `realtime_price` mode
    works with any plain price sensor out of the box (self-collected rolling

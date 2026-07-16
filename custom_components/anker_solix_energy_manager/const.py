@@ -85,15 +85,20 @@ BATTERY_SOC_ENTITY = "soc_entity"  # sensor.*_soc (%)
 BATTERY_DEVICE_STATUS_ENTITY = "device_status_entity"  # sensor.*_device_status
 BATTERY_CHARGING_POWER_ENTITY = "charging_power_entity"  # sensor.*_charging_power (W)
 BATTERY_DISCHARGING_POWER_ENTITY = "discharging_power_entity"  # sensor.*_discharging_power (W)
-BATTERY_CHARGE_LIMIT_ENTITY = "charge_limit_entity"  # number.*_charge_limit / max SOC (optional)
-BATTERY_DISCHARGE_LIMIT_ENTITY = "discharge_limit_entity"  # number.*_discharge_limit / min SOC (optional)
+# NOTE: earlier drafts also collected charge_limit_entity/discharge_limit_entity
+# (a "number.*_charge_limit" / "max SOC" style optional entity), but nothing
+# in the control loop ever read them, and their exact real-world semantics
+# (SOC percentage vs. a power ceiling in W) were never confirmed against a
+# live Anker entity — wiring a guessed interpretation into SOC-boundary
+# control logic would be worse than not having the feature. Removed rather
+# than shipped as a config option that silently does nothing.
 BATTERY_CAPACITY_WH = "capacity_wh"
 BATTERY_MAX_CHARGE_W = "max_charge_w"
 BATTERY_MAX_DISCHARGE_W = "max_discharge_w"
 
 # Anker Solix Solarbank Max AC published specs (used only as config-flow defaults —
 # always overridable per unit).
-DEFAULT_BATTERY_CAPACITY_WH = 8000
+DEFAULT_BATTERY_CAPACITY_WH = 7000
 DEFAULT_BATTERY_MAX_POWER_W = 3500
 
 # Anker `number.*_target_grid_power` accepts 0, or 100-3500. Values below the
@@ -148,9 +153,9 @@ PD_GRID_FILTER_TAU_S = 6.0
 PD_DERIVATIVE_TAU_S = 8.0
 
 PD_PROFILE_CUSTOM = "custom"
-# Deliberately more conservative than the Marstek defaults as a starting point,
-# given the prior SoC-instability history with a different battery brand —
-# "smooth" is the recommended first profile, not "balanced".
+# Deliberately conservative starting point given the prior SoC-instability
+# history with a different battery brand — "smooth" is the recommended
+# first profile, not "balanced".
 PD_TUNING_PROFILES = {
     "very_smooth": {CONF_PD_KP: 0.18, CONF_PD_KD: 0.12, CONF_PD_MAX_POWER_CHANGE: 300},
     "smooth": {CONF_PD_KP: 0.25, CONF_PD_KD: 0.20, CONF_PD_MAX_POWER_CHANGE: 450},

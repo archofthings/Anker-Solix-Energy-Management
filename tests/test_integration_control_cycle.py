@@ -122,7 +122,11 @@ async def test_first_cycle_discharges_to_cover_grid_import(hass):
     number_calls = calls["number.set_value"]
     assert number_calls, "expected at least one number.set_value call"
     total_commanded = sum(c["value"] for c in number_calls if c["value"] > 0)
-    assert total_commanded == 1000
+    # The PD controller ramps in on its very first execution rather than
+    # jumping straight to the full -1000W command (see pd_controller.py) —
+    # commanded power this cycle is capped at the "smooth" profile's
+    # max_power_change_w (450W), not the full grid error.
+    assert total_commanded == 450
 
     select_calls = calls["select.select_option"]
     discharge_flow_calls = [c for c in select_calls if c.get("option") == "discharge"]

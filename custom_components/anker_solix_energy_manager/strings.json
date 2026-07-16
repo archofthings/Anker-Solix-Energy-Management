@@ -22,8 +22,6 @@
           "device_status_entity": "Device status sensor",
           "charging_power_entity": "Charging power sensor",
           "discharging_power_entity": "Discharging power sensor",
-          "charge_limit_entity": "Charge limit number entity (optional)",
-          "discharge_limit_entity": "Discharge limit number entity (optional)",
           "capacity_wh": "Usable capacity (Wh)",
           "max_charge_w": "Max charge power (W)",
           "max_discharge_w": "Max discharge power (W)"
@@ -53,10 +51,15 @@
     },
     "error": {
       "predictive_needs_solar_forecast": "Predictive charging requires a solar forecast sensor to be configured.",
-      "predictive_needs_price_sensor": "This predictive charging mode requires a price sensor to be configured."
+      "predictive_needs_price_sensor": "This predictive charging mode requires a price sensor to be configured.",
+      "predictive_needs_fixed_slot": "Fixed-slot mode requires both a start and end time to be set.",
+      "battery_name_required": "Battery name cannot be empty.",
+      "battery_name_duplicate": "This name is already used by the other battery — battery names must be unique.",
+      "battery_entity_duplicate": "One or more entities are already selected for the other battery — each battery needs its own entities."
     },
     "abort": {
-      "already_configured": "Anker Solix Energy Manager is already configured."
+      "already_configured": "Anker Solix Energy Manager is already configured.",
+      "reconfigure_successful": "Settings updated. The integration has been reloaded with the new configuration."
     }
   }
 }

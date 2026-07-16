@@ -2,9 +2,9 @@
 
 While on, the integration will not write any setpoints or touch the
 operating_mode entities — whatever mode/power you've set on the batteries
-directly (e.g. via the Anker app) is left alone. Mirrors the reference
-project's manual-mode switch, which exists specifically so you can safely
-hand control back to the stock app without unloading the integration.
+directly (e.g. via the Anker app) is left alone. Exists specifically so you
+can safely hand control back to the stock app without unloading the
+integration.
 """
 from __future__ import annotations
 
@@ -42,6 +42,11 @@ class ManualModeSwitch(SwitchEntity):
     async def async_turn_off(self, **kwargs) -> None:
         self._controller.manual_mode_enabled = False
         self._controller.pd.reset()  # re-seed on next cycle instead of resuming a stale command
+        # Force an immediate mode-guard check rather than waiting up to 30s:
+        # manual mode may have left the battery in any mode (e.g. switched
+        # to smart_mode by hand), and control is resuming right now.
+        for battery in self._controller.batteries:
+            await battery.async_ensure_third_party_control(force=True)
         self.async_write_ha_state()
 
 

@@ -1,15 +1,13 @@
 """Derived household consumption tracking.
 
-Simplified from `consumption_tracker.py` in ffunes/Marstek-Venus-Energy-Manager
-(1221 lines there — solar-noon/sunrise estimation, per-slot windows, grid-at-
-min-SOC history, ...). This version deliberately drops the self-estimated
-solar-timing heuristics: we have a real solar *forecast* sensor available
-(Solcast / Forecast.Solar via CONF_SOLAR_FORECAST_REMAINING_SENSOR), so
-predictive charging's "will solar cover the gap" question is answered from
-that forecast directly rather than by modeling sunrise/sunset ourselves.
+Deliberately doesn't model solar timing (sunrise/solar-noon heuristics) — a
+real solar *forecast* sensor is available (Solcast / Forecast.Solar via
+CONF_SOLAR_FORECAST_REMAINING_SENSOR), so predictive charging's "will solar
+cover the gap" question is answered from that forecast directly rather than
+by estimating sunrise/sunset ourselves.
 
-What this keeps: household consumption is derived (no separate consumption
-sensor needed) from the same energy-balance identity —
+Household consumption is derived (no separate consumption sensor needed)
+from an energy-balance identity —
 
     home_consumption_w = solar_power_w + grid_power_w - battery_net_charge_w
 

@@ -25,10 +25,8 @@ from .const import (
     ANKER_TARGET_GRID_POWER_FLOOR_W,
     ANKER_TARGET_GRID_POWER_MAX_W,
     BATTERY_CAPACITY_WH,
-    BATTERY_CHARGE_LIMIT_ENTITY,
     BATTERY_CHARGING_POWER_ENTITY,
     BATTERY_DEVICE_STATUS_ENTITY,
-    BATTERY_DISCHARGE_LIMIT_ENTITY,
     BATTERY_DISCHARGING_POWER_ENTITY,
     BATTERY_GRID_FLOW_ENTITY,
     BATTERY_MAX_CHARGE_W,
@@ -102,9 +100,9 @@ class BatteryAdapter:
     def refresh(self) -> None:
         """Reshape current Anker entity state into `self.data`.
 
-        Kept as a plain dict (not typed) deliberately — this is the same
-        interface the ported Marstek decision modules were written against
-        (`coordinator.data.get("battery_soc", ...)`).
+        Kept as a plain dict (not typed) deliberately — the decision modules
+        (power_distribution.py, pd_controller.py) read it as
+        `data.get("battery_soc", ...)` and don't need a typed model.
         """
         hass = self.hass
         cfg = self.config
@@ -183,8 +181,7 @@ class BatteryAdapter:
 
     async def async_set_power(self, charge_w: float, discharge_w: float) -> None:
         """Write a charge/discharge setpoint. Exactly one of charge_w /
-        discharge_w should be non-zero (mirrors the Marstek controller's
-        `_set_battery_power(coordinator, charge_w, discharge_w)` seam).
+        discharge_w should be non-zero.
         """
         await self.async_ensure_third_party_control()
 
