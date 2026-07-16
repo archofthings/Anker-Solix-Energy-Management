@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Anker Solix Energy Manager",
+        "description": "Global settings. This integration reads/writes entities already exposed by the official Anker Solix integration — it does not connect to your batteries directly.",
+        "data": {
+          "grid_power_sensor": "Grid power sensor (signed W, + = import / - = export)",
+          "max_contracted_power_w": "Breaker / contracted power limit (W)",
+          "min_cycle_interval_s": "Minimum control cycle interval (s)"
+        }
+      },
+      "battery": {
+        "title": "Battery {index} of {count}",
+        "description": "Entity IDs from the official Anker Solix integration for this unit.",
+        "data": {
+          "name": "Name",
+          "operating_mode_entity": "Operating mode select entity",
+          "target_grid_power_entity": "Target grid power number entity",
+          "grid_flow_entity": "Grid flow (charge/discharge) select entity",
+          "soc_entity": "State of charge sensor",
+          "device_status_entity": "Device status sensor",
+          "charging_power_entity": "Charging power sensor",
+          "discharging_power_entity": "Discharging power sensor",
+          "charge_limit_entity": "Charge limit number entity (optional)",
+          "discharge_limit_entity": "Discharge limit number entity (optional)",
+          "capacity_wh": "Usable capacity (Wh)",
+          "max_charge_w": "Max charge power (W)",
+          "max_discharge_w": "Max discharge power (W)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Anker Solix Energy Manager is already configured."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "domain": "anker_solix_energy_manager",
+  "name": "Anker Solix Energy Manager",
+  "codeowners": ["@archofthings"],
+  "config_flow": true,
+  "documentation": "https://github.com/archofthings/Anker-Solix-Energy-Management",
+  "integration_type": "hub",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/archofthings/Anker-Solix-Energy-Management/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

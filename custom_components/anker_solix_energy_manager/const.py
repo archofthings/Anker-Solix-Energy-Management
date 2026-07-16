@@ -1,0 +1,127 @@
+"""Constants for the Anker Solix Energy Manager integration.
+
+Design note: this integration does NOT talk Modbus/cloud to the Anker units
+itself. It reads/writes the entities already exposed by the official
+`ha-anker-solix-official` integration (state read + `number`/`select`
+service calls). That keeps this component decoupled from Anker's transport
+layer entirely — it only knows about entity_ids, configured per battery in
+the config flow.
+"""
+from __future__ import annotations
+
+DOMAIN = "anker_solix_energy_manager"
+PLATFORMS = ["sensor", "number", "select", "switch"]
+
+# ---------------------------------------------------------------------------
+# Config entry keys — global
+# ---------------------------------------------------------------------------
+CONF_GRID_POWER_SENSOR = "grid_power_sensor"  # signed W, +import / -export
+CONF_BATTERIES = "batteries"  # list[dict] of per-battery entity config (see below)
+CONF_MIN_CYCLE_INTERVAL = "min_cycle_interval_s"
+CONF_MAX_CONTRACTED_POWER = "max_contracted_power_w"  # breaker limit, peak-shaving cap
+
+DEFAULT_MIN_CYCLE_INTERVAL = 2.0
+DEFAULT_MAX_CONTRACTED_POWER = 5750  # 3-phase 25A-ish default; user must confirm breaker rating
+
+# ---------------------------------------------------------------------------
+# Per-battery entity keys (one dict per battery in CONF_BATTERIES)
+# ---------------------------------------------------------------------------
+BATTERY_NAME = "name"
+BATTERY_OPERATING_MODE_ENTITY = "operating_mode_entity"  # select.*_operating_mode
+BATTERY_TARGET_GRID_POWER_ENTITY = "target_grid_power_entity"  # number.*_target_grid_power
+BATTERY_GRID_FLOW_ENTITY = "grid_flow_entity"  # select.*_grid_flow
+BATTERY_SOC_ENTITY = "soc_entity"  # sensor.*_soc (%)
+BATTERY_DEVICE_STATUS_ENTITY = "device_status_entity"  # sensor.*_device_status
+BATTERY_CHARGING_POWER_ENTITY = "charging_power_entity"  # sensor.*_charging_power (W)
+BATTERY_DISCHARGING_POWER_ENTITY = "discharging_power_entity"  # sensor.*_discharging_power (W)
+BATTERY_CHARGE_LIMIT_ENTITY = "charge_limit_entity"  # number.*_charge_limit / max SOC (optional)
+BATTERY_DISCHARGE_LIMIT_ENTITY = "discharge_limit_entity"  # number.*_discharge_limit / min SOC (optional)
+BATTERY_CAPACITY_WH = "capacity_wh"
+BATTERY_MAX_CHARGE_W = "max_charge_w"
+BATTERY_MAX_DISCHARGE_W = "max_discharge_w"
+
+# Anker Solix Solarbank Max AC published specs (used only as config-flow defaults —
+# always overridable per unit).
+DEFAULT_BATTERY_CAPACITY_WH = 8000
+DEFAULT_BATTERY_MAX_POWER_W = 3500
+
+# Anker `number.*_target_grid_power` accepts 0, or 100-3500. Values below the
+# floor are not meaningful setpoints and are treated as "idle" by the adapter.
+ANKER_TARGET_GRID_POWER_FLOOR_W = 100
+ANKER_TARGET_GRID_POWER_MAX_W = 3500
+
+# select.*_operating_mode option values (per user-confirmed live entities).
+MODE_SMART = "smart_mode"
+MODE_THIRD_PARTY_CONTROL = "third_party_control"
+MODE_CUSTOM = "custom_mode"
+MODE_SELF_CONSUMPTION = "self_consumption"
+MODE_TOU = "tou_mode"
+MODE_SOCKET_OVERLAY = "socket_overlay_mode"
+MODE_DYNAMIC_PRICING = "dynamic_pricing"
+
+# select.*_grid_flow option values.
+GRID_FLOW_CHARGE = "charge"
+GRID_FLOW_DISCHARGE = "discharge"
+
+# How often (seconds) the adapter re-checks that operating_mode is still
+# third_party_control. The units are known to silently revert on a :07/:37
+# minute wall-clock cycle; checking every control cycle (well under 30 min)
+# reliably catches and corrects this before it can leave a battery idle.
+MODE_GUARD_CHECK_INTERVAL_S = 30
+
+# ---------------------------------------------------------------------------
+# PD (proportional-derivative) zero-export controller
+# ---------------------------------------------------------------------------
+CONF_PD_KP = "pd_kp"
+CONF_PD_KD = "pd_kd"
+CONF_PD_DEADBAND = "pd_deadband_w"
+CONF_PD_MAX_POWER_CHANGE = "pd_max_power_change_w"
+CONF_PD_DIRECTION_HYSTERESIS = "pd_direction_hysteresis_w"
+CONF_PD_MIN_CHARGE_POWER = "pd_min_charge_power_w"
+CONF_PD_MIN_DISCHARGE_POWER = "pd_min_discharge_power_w"
+CONF_PD_TUNING_PROFILE = "pd_tuning_profile"
+
+DEFAULT_PD_KP = 0.30
+DEFAULT_PD_KD = 0.25
+DEFAULT_PD_DEADBAND = 50
+DEFAULT_PD_MAX_POWER_CHANGE = 500
+DEFAULT_PD_DIRECTION_HYSTERESIS = 80
+DEFAULT_PD_MIN_CHARGE_POWER = ANKER_TARGET_GRID_POWER_FLOOR_W
+DEFAULT_PD_MIN_DISCHARGE_POWER = ANKER_TARGET_GRID_POWER_FLOOR_W
+
+# Nominal control-loop period used to normalize rate/derivative terms when the
+# event-driven cadence varies (matches CONF_MIN_CYCLE_INTERVAL by default).
+PD_NOMINAL_DT_S = 2.0
+# EMA time constants (seconds) for the grid-sample filter and the derivative filter.
+PD_GRID_FILTER_TAU_S = 6.0
+PD_DERIVATIVE_TAU_S = 8.0
+
+PD_PROFILE_CUSTOM = "custom"
+# Deliberately more conservative than the Marstek defaults as a starting point,
+# given the prior SoC-instability history with a different battery brand —
+# "smooth" is the recommended first profile, not "balanced".
+PD_TUNING_PROFILES = {
+    "very_smooth": {CONF_PD_KP: 0.18, CONF_PD_KD: 0.12, CONF_PD_MAX_POWER_CHANGE: 300},
+    "smooth": {CONF_PD_KP: 0.25, CONF_PD_KD: 0.20, CONF_PD_MAX_POWER_CHANGE: 450},
+    "balanced": {CONF_PD_KP: DEFAULT_PD_KP, CONF_PD_KD: DEFAULT_PD_KD, CONF_PD_MAX_POWER_CHANGE: DEFAULT_PD_MAX_POWER_CHANGE},
+    "aggressive": {CONF_PD_KP: 0.45, CONF_PD_KD: 0.35, CONF_PD_MAX_POWER_CHANGE: 900},
+    "very_aggressive": {CONF_PD_KP: 0.65, CONF_PD_KD: 0.40, CONF_PD_MAX_POWER_CHANGE: 1500},
+}
+PD_TUNING_PROFILE_OPTIONS = list(PD_TUNING_PROFILES.keys()) + [PD_PROFILE_CUSTOM]
+DEFAULT_PD_TUNING_PROFILE = "smooth"
+
+# Anti-windup: how much sustained shortfall between commanded and measured
+# battery power before the controller re-anchors to reality.
+PD_SATURATION_BACKCALC_THRESHOLD_W = 150
+PD_SATURATION_BACKCALC_CYCLES = 3
+
+# ---------------------------------------------------------------------------
+# Multi-battery (2-unit) load sharing
+# ---------------------------------------------------------------------------
+MULTI_BATTERY_DISCHARGE_CROSSOVER_W = 1500
+MULTI_BATTERY_CHARGE_CROSSOVER_W = 1750
+MULTI_BATTERY_HYSTERESIS_GAP = 0.10
+MULTI_BATTERY_MIN_ACTIVATION = 0.50
+MULTI_BATTERY_MAX_ACTIVATION = 0.95
+MULTI_BATTERY_SELECTION_HOLD_SECONDS = 120
+MULTI_BATTERY_SOC_HYSTERESIS = 5.0
