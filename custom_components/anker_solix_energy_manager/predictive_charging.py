@@ -11,7 +11,8 @@ top of whatever this decides; it is not a way to bypass the breaker limit.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, field
 from datetime import datetime, time as dt_time, timedelta
 
 from homeassistant.core import HomeAssistant
@@ -19,6 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from .adapter import BatteryAdapter
 from .const import (
+    PREDICTIVE_CHARGING_MIN_DWELL_S,
     PREDICTIVE_MODE_DYNAMIC_PRICING,
     PREDICTIVE_MODE_FIXED_SLOTS,
     PREDICTIVE_MODE_REALTIME_PRICE,
@@ -65,6 +67,10 @@ class PredictiveChargingManager:
     consumption_tracker: ConsumptionTracker
     price_tracker: PriceTracker | None
     batteries: list[BatteryAdapter]
+
+    # Anti-chatter dwell-time state (see should_charge's docstring).
+    _active: bool = field(default=False, init=False)
+    _last_transition_monotonic: float = field(default=float("-inf"), init=False)
 
     def _solar_forecast_remaining_kwh(self) -> float:
         # No forecast sensor configured -> assume 0 kWh remaining solar.
@@ -138,11 +144,7 @@ class PredictiveChargingManager:
             return False, "no forecast entry for current hour"
         return current_hour_entries[0] <= threshold, "forecast lookahead"
 
-    def should_charge(self, now: datetime | None = None) -> tuple[bool, str]:
-        if not self.enabled:
-            return False, "disabled"
-        now = now or dt_util.now()
-
+    def _evaluate(self, now: datetime) -> tuple[bool, str]:
         if not self._any_battery_below_target():
             return False, "batteries at/above target SOC"
 
@@ -162,3 +164,28 @@ class PredictiveChargingManager:
 
         _LOGGER.warning("Predictive charging: unknown mode %r, treating as disabled", self.mode)
         return False, f"unknown mode {self.mode!r}"
+
+    def should_charge(self, now: datetime | None = None) -> tuple[bool, str]:
+        """Gated by a minimum dwell time once active/inactive, so a noisy
+        gate (SOC hovering right at target, a reactive price percentile
+        flickering, a shortfall estimate near zero) can't rapidly toggle
+        grid charging on and off. Disabling the feature takes effect
+        immediately — that's an explicit user override, not something to
+        smooth over.
+        """
+        if not self.enabled:
+            self._active = False
+            return False, "disabled"
+
+        now = now or dt_util.now()
+        raw_result, reason = self._evaluate(now)
+
+        if raw_result != self._active:
+            elapsed_s = time.monotonic() - self._last_transition_monotonic
+            if elapsed_s < PREDICTIVE_CHARGING_MIN_DWELL_S:
+                held = "active" if self._active else "inactive"
+                return self._active, f"{reason} (holding {held}, dwell time not elapsed)"
+            self._active = raw_result
+            self._last_transition_monotonic = time.monotonic()
+
+        return self._active, reason

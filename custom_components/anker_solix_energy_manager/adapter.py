@@ -2,9 +2,9 @@
 `ha-anker-solix-official` integration's entities.
 
 This is the entire seam: decision logic reads `BatteryAdapter.data` (a plain
-dict, mirroring the shape the ported Marstek modules expect) and writes
-through `BatteryAdapter.async_set_power()`. Nothing upstream of this file
-needs to know these are Anker entities, or about the mode-revert quirk below.
+dict) and writes through `BatteryAdapter.async_set_power()`. Nothing
+upstream of this file needs to know these are Anker entities, or about the
+mode-revert quirk below.
 
 Known Anker quirk (must not be "fixed away"): the units silently revert from
 third_party_control back to their native operating mode on a :07/:37 minute
@@ -75,7 +75,11 @@ class BatteryAdapter:
     hass: HomeAssistant
     config: dict[str, Any]
     data: dict[str, Any] = field(default_factory=dict)
-    _last_mode_guard_check: float = 0.0
+    # -inf (not 0.0) guarantees the very first guard check always runs,
+    # regardless of what time.monotonic()'s arbitrary reference point
+    # happens to be on this platform — relying on "monotonic() is probably
+    # already > 30" by the time this loads was true by accident, not design.
+    _last_mode_guard_check: float = float("-inf")
 
     @property
     def name(self) -> str:
@@ -106,10 +110,13 @@ class BatteryAdapter:
         cfg = self.config
 
         soc = _state_float(hass, cfg.get(BATTERY_SOC_ENTITY))
-        charging_power = _state_float(hass, cfg.get(BATTERY_CHARGING_POWER_ENTITY)) or 0.0
-        discharging_power = _state_float(hass, cfg.get(BATTERY_DISCHARGING_POWER_ENTITY)) or 0.0
+        charging_power_raw = _state_float(hass, cfg.get(BATTERY_CHARGING_POWER_ENTITY))
+        discharging_power_raw = _state_float(hass, cfg.get(BATTERY_DISCHARGING_POWER_ENTITY))
         status_state = hass.states.get(cfg.get(BATTERY_DEVICE_STATUS_ENTITY) or "")
         mode_state = hass.states.get(cfg.get(BATTERY_OPERATING_MODE_ENTITY) or "")
+
+        charging_power = charging_power_raw or 0.0
+        discharging_power = discharging_power_raw or 0.0
 
         self.data = {
             "battery_soc": soc if soc is not None else 50.0,
@@ -119,7 +126,19 @@ class BatteryAdapter:
             "measured_power": charging_power - discharging_power,
             "device_status": status_state.state if status_state else None,
             "operating_mode": mode_state.state if mode_state else None,
-            "available": soc is not None and status_state is not None,
+            # A missing/unavailable charging or discharging power sensor must
+            # NOT silently read as "0W measured" — that would feed a false
+            # reading straight into the PD anti-windup re-anchor logic
+            # (looks identical to "battery genuinely delivered nothing").
+            # Treat the whole battery as unavailable instead, so it's
+            # excluded from selection until the sensor is back.
+            "available": (
+                soc is not None
+                and status_state is not None
+                and mode_state is not None
+                and charging_power_raw is not None
+                and discharging_power_raw is not None
+            ),
         }
 
     # -- write side -----------------------------------------------------
@@ -186,7 +205,15 @@ class BatteryAdapter:
 
         if grid_flow_entity:
             flow_state = self.hass.states.get(grid_flow_entity)
-            if flow_state is None or flow_state.state != direction:
+            direction_changing = flow_state is None or flow_state.state != direction
+            if direction_changing:
+                # Zero the setpoint *before* flipping direction. Otherwise
+                # there's a real window — between these two service calls
+                # landing on the device — where grid_flow already reads the
+                # new direction while target_grid_power still holds the old
+                # (possibly large) magnitude from the previous direction,
+                # which the device could act on immediately.
+                await self._async_write_power(power_entity, 0)
                 await self.hass.services.async_call(
                     "select", "select_option",
                     {"entity_id": grid_flow_entity, "option": direction},

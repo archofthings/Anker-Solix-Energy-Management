@@ -1,13 +1,11 @@
 """Incremental proportional-derivative (PD) zero/target-export grid controller.
 
-Reimplemented from the control loop in ffunes/Marstek-Venus-Energy-Manager
-(`ChargeDischargeController._run_control_cycle`, __init__.py), trimmed to a
-single-purpose, battery-agnostic class: given a grid power reading and a
+A single-purpose, battery-agnostic class: given a grid power reading and a
 target, it outputs a signed aggregate battery power command (+charge /
 -discharge). It knows nothing about batteries, entities, or HA.
 
-This carries over the anti-oscillation mechanisms on purpose — the prior
-hardware (three Marstek Venus units) was returned for SoC/grid-flow
+The anti-oscillation mechanisms below are deliberate, not incidental — the
+prior hardware (three Marstek Venus units) was returned for SoC/grid-flow
 instability, so a naive "output = Kp * error" controller is not an option:
 
 - Incremental control: each cycle adjusts the *previous* commanded power by
@@ -26,11 +24,11 @@ instability, so a naive "output = Kp * error" controller is not an option:
   winds up and causes an overshoot once the load changes.
 - A deadband, so the controller does not chase sub-threshold noise at all.
 
-Simplification vs. the reference: no integral (Ki) term. The incremental P
-term already behaves like integral action (see class docstring above), and
-dropping Ki removes an entire anti-windup/leaky-integrator subsystem for a
-two-battery deployment where the extra term is unlikely to be needed. Kept
-as a documented option to revisit if steady-state error proves non-zero.
+Deliberately no integral (Ki) term: the incremental P term already behaves
+like integral action (see above), and dropping Ki removes an entire
+anti-windup/leaky-integrator subsystem for a two-battery deployment where the
+extra term is unlikely to be needed. Revisit only if steady-state error
+proves non-zero in practice.
 """
 from __future__ import annotations
 
@@ -120,25 +118,43 @@ class PDController:
         error = grid_power_w - target_w
 
         if self.first_execution:
-            self.previous_power = -error
+            target_power = -error
+            # Ramp in rather than an unbounded first jump: a large grid
+            # imbalance already present at startup (e.g. right after a HA
+            # restart mid-load) must not produce an instant full-power step
+            # just because there's no "previous" command to rate-limit from.
+            rate_limited = abs(target_power) > self.max_power_change_w
+            if rate_limited:
+                target_power = math.copysign(self.max_power_change_w, target_power)
+            self.previous_power = target_power
             self.previous_error = -error
             self._derivative_filtered = 0.0
             self.first_execution = False
             self.last_output_sign = 1 if self.previous_power > 0 else (-1 if self.previous_power < 0 else 0)
-            return PDResult(self.previous_power, error, False, False, False)
+            return PDResult(self.previous_power, error, False, False, rate_limited)
 
         if abs(error) < self.deadband_w:
             self.previous_error = error
             self._derivative_filtered = 0.0
+            self._saturation_cycles = 0
             self._quality_last_ts = time.monotonic()
             return PDResult(self.previous_power, error, True, False, False)
 
         # Anti-windup: re-anchor to measured power if the battery has sustainedly
         # under-delivered the commanded setpoint (same sign, meaningful shortfall).
+        # "Same sign" must treat measured==0 as consistent with EITHER command
+        # direction (a battery that's supposed to be discharging but measures
+        # exactly 0W is exactly the under-delivery case this exists to catch) —
+        # comparing previous_power>0 against measured>=0 is asymmetric and misses
+        # that case when previous_power<0, so both sides use the same >=/<= shape.
+        same_direction = (
+            (self.previous_power > 0 and measured_battery_power_w is not None and measured_battery_power_w >= 0)
+            or (self.previous_power < 0 and measured_battery_power_w is not None and measured_battery_power_w <= 0)
+        )
         if (
             measured_battery_power_w is not None
             and self.previous_power != 0
-            and (self.previous_power > 0) == (measured_battery_power_w >= 0)
+            and same_direction
             and abs(self.previous_power) - abs(measured_battery_power_w) > PD_SATURATION_BACKCALC_THRESHOLD_W
         ):
             self._saturation_cycles += 1
@@ -207,6 +223,7 @@ class PDController:
         self.previous_error = error
         self.last_output_sign = 1 if held_power_w > 0 else (-1 if held_power_w < 0 else 0)
         self._derivative_filtered = 0.0
+        self._saturation_cycles = 0
 
     def _update_quality_metrics(self, error: float, sign_changed: bool) -> None:
         now = time.monotonic()

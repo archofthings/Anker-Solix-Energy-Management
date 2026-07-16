@@ -34,6 +34,7 @@ from .const import (
     CONSUMPTION_STORE_KEY,
     CONSUMPTION_STORE_VERSION,
     DEFAULT_FALLBACK_DAILY_CONSUMPTION_KWH,
+    MAX_PLAUSIBLE_HOME_POWER_W,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -108,8 +109,11 @@ class ConsumptionTracker:
         home_w = solar_w + grid_w - battery_net_charge_w
         # Household draw can't be meaningfully negative; a brief negative
         # reading here is sensor noise/timing skew across three independent
-        # sources, not a real energy-balance violation.
-        return max(0.0, home_w)
+        # sources, not a real energy-balance violation. The upper clamp
+        # guards the opposite failure: a single glitched sample (bad Modbus
+        # frame, unit mismatch) must not inject an implausible energy chunk
+        # that then skews the 7-day rolling average for up to a week.
+        return max(0.0, min(home_w, MAX_PLAUSIBLE_HOME_POWER_W))
 
     def accumulate(self, elapsed_s: float | None, battery_net_charge_w: float) -> None:
         """Integrate the current sample into today's running total.
@@ -147,10 +151,6 @@ class ConsumptionTracker:
     @property
     def today_kwh(self) -> float:
         return round(self.today_wh / 1000.0, 3)
-
-    @property
-    def has_sufficient_history(self) -> bool:
-        return len(self.history_kwh) >= 2
 
     def expected_consumption_over(self, hours: float) -> float:
         """Expected consumption (kWh) over the next `hours`, from the

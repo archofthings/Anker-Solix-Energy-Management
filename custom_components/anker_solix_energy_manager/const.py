@@ -56,12 +56,23 @@ DEFAULT_PREDICTIVE_TARGET_SOC = 80
 DEFAULT_PREDICTIVE_COVERAGE_HOURS = 8.0
 DEFAULT_PREDICTIVE_CHARGE_POWER_W = 1500
 
+# Minimum time an active/inactive predictive-charging decision holds before
+# it's allowed to flip again — a flat backstop against chatter regardless of
+# which gate is noisy (SOC hovering at target, a reactive price percentile
+# hovering at its threshold, a shortfall estimate hovering near zero).
+PREDICTIVE_CHARGING_MIN_DWELL_S = 300
+
 # Consumption tracker
 CONSUMPTION_HISTORY_DAYS = 7
 CONSUMPTION_STORE_VERSION = 1
 CONSUMPTION_STORE_KEY = f"{DOMAIN}_consumption_history"
 # Sane fallback average (kWh/day) used only until enough real history accumulates.
 DEFAULT_FALLBACK_DAILY_CONSUMPTION_KWH = 15.0
+# Sanity ceiling for a single instantaneous home-power sample: no residential
+# setup plausibly sees this, so a reading above it is a sensor glitch (bad
+# Modbus frame, unit mismatch, ...), not real consumption — clamped rather
+# than trusted, so it can't corrupt the 7-day rolling average for a week.
+MAX_PLAUSIBLE_HOME_POWER_W = 30000
 
 # ---------------------------------------------------------------------------
 # Per-battery entity keys (one dict per battery in CONF_BATTERIES)

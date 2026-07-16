@@ -388,9 +388,26 @@ async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    controller: EnergyManagerController = hass.data[DOMAIN][entry.entry_id]
+
+    # Safety: once this integration stops running (removed, reconfigured,
+    # reloaded — anything that reaches here, not just a full HA shutdown),
+    # nothing is left supervising the last-written command. A battery left
+    # mid-discharge or mid-charge with no PD loop, no capacity protection,
+    # and no anti-windup running would keep executing that command
+    # indefinitely — the mode-revert quirk's own timing is the only thing
+    # that would eventually hand it back to native control, which is not a
+    # bound we can rely on. Zero every battery's setpoint before unloading.
+    # Best-effort per battery: one failing must not stop the others or block
+    # unload itself.
+    for battery in controller.batteries:
+        try:
+            await battery.async_set_power(0, 0)
+        except Exception:
+            _LOGGER.exception("Failed to zero %s power while unloading", battery.name)
+
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        controller: EnergyManagerController = hass.data[DOMAIN][entry.entry_id]
         await controller.consumption_tracker.async_save(force=True)
         hass.data[DOMAIN].pop(entry.entry_id, None)
     return unloaded

@@ -16,11 +16,23 @@ def _make_controller(**overrides):
     return PDController(**kwargs)
 
 
-def test_first_execution_counters_current_error():
-    pd = _make_controller()
+def test_first_execution_counters_current_error_within_rate_limit():
+    pd = _make_controller(max_power_change_w=5000)
     result = pd.compute(grid_power_w=1000, target_w=0, elapsed_s=None)
     assert result.power_w == -1000
     assert pd.first_execution is False
+    assert result.rate_limited is False
+
+
+def test_first_execution_ramps_in_rather_than_unbounded_jump():
+    # A large grid imbalance already present at startup (e.g. right after a
+    # HA restart) must not produce an instant full-power step just because
+    # there's no "previous" command yet to rate-limit from.
+    pd = _make_controller(max_power_change_w=500)
+    result = pd.compute(grid_power_w=5000, target_w=0, elapsed_s=None)
+    assert result.power_w == -500  # clamped to max_power_change_w, not -5000
+    assert result.rate_limited is True
+    assert pd.previous_power == -500
 
 
 def test_deadband_holds_last_command():
@@ -64,11 +76,28 @@ def test_minimum_power_forces_idle():
 
 
 def test_anti_windup_reanchors_after_sustained_shortfall():
-    pd = _make_controller(kp=0.3, kd=0.0)
+    # max_power_change_w=5000 so the (now rate-limited) first execution can
+    # still establish previous_power=-2000 unclamped, isolating this test to
+    # the anti-windup mechanism itself rather than the startup ramp-in.
+    pd = _make_controller(kp=0.3, kd=0.0, max_power_change_w=5000)
     pd.compute(grid_power_w=2000, target_w=0, elapsed_s=None)  # previous_power = -2000
     for _ in range(5):
         pd.compute(grid_power_w=2000, target_w=0, elapsed_s=2.0, measured_battery_power_w=-500)
     # Should have re-anchored toward the measured -500W, not stayed near -2000W.
+    assert pd.previous_power > -1500
+
+
+def test_anti_windup_reanchors_symmetrically_when_measured_is_exactly_zero():
+    # Regression test: commanding discharge (previous_power<0) while the
+    # battery measures exactly 0W (e.g. it hit a protection limit and
+    # stopped) must be recognized as "same direction, full shortfall" and
+    # trigger re-anchoring — comparing previous_power>0 against
+    # measured>=0 on both sides is asymmetric and used to miss this exact
+    # case when previous_power<0.
+    pd = _make_controller(kp=0.3, kd=0.0, max_power_change_w=5000)
+    pd.compute(grid_power_w=2000, target_w=0, elapsed_s=None)  # previous_power = -2000
+    for _ in range(5):
+        pd.compute(grid_power_w=2000, target_w=0, elapsed_s=2.0, measured_battery_power_w=0.0)
     assert pd.previous_power > -1500
 
 
