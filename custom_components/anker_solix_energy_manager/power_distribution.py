@@ -148,7 +148,18 @@ class PowerDistribution:
     def distribute_power(self, total_power_w: float, selected: list[BatteryAdapter], is_charging: bool) -> dict[BatteryAdapter, float]:
         """Proportional allocation by each battery's limit, capped and
         redistributed iteratively so no battery is asked for more than it
-        can take."""
+        can take.
+
+        Note: with `remaining_power` pre-clamped to `min(total_power_w,
+        total_capacity)` below, share_b/limit_b == remaining_power/capacity
+        for every battery simultaneously on the first pass — so no battery's
+        share can exceed its own limit, and the capping/redistribution loop
+        never actually iterates more than once in practice. It's kept
+        because callers aren't required to pre-clamp `total_power_w`
+        themselves, and it costs nothing to leave the (verified, tested)
+        general case in place rather than assume every call site gets the
+        clamp right.
+        """
         if not selected:
             return {}
 

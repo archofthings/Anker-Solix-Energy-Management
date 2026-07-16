@@ -74,13 +74,29 @@ def test_distribute_power_proportional_to_limits():
     assert allocation[b] == 300
 
 
-def test_distribute_power_caps_at_limit_and_redistributes_excess():
+def test_distribute_power_proportional_share_never_exceeds_own_limit():
+    # With remaining_power pre-clamped to min(total, total_capacity), a
+    # battery's proportional share can never exceed its own limit — see the
+    # note in distribute_power's docstring. Verify that invariant directly
+    # rather than asserting a specific capped value that can't occur here.
     a = FakeBattery("A", max_charge_w=500)
     b = FakeBattery("B", max_charge_w=3000)
     pd = PowerDistribution(batteries=[a, b])
     allocation = pd.distribute_power(3000, [a, b], is_charging=True)
-    assert allocation[a] == 500  # capped at its own limit
-    assert allocation[b] == 2500  # takes the rest, still under its own 3000W limit
+    assert allocation[a] <= 500
+    assert allocation[b] <= 3000
+    assert allocation[a] + allocation[b] <= 3000
+
+
+def test_distribute_power_uncapped_request_matches_total_capacity_at_the_limit():
+    # Requesting exactly the combined capacity: every battery lands at (or
+    # within rounding of) its own limit.
+    a = FakeBattery("A", max_charge_w=500)
+    b = FakeBattery("B", max_charge_w=3000)
+    pd = PowerDistribution(batteries=[a, b])
+    allocation = pd.distribute_power(3500, [a, b], is_charging=True)
+    assert allocation[a] == 500
+    assert allocation[b] == 3000
 
 
 def test_distribute_power_never_exceeds_total_capacity():

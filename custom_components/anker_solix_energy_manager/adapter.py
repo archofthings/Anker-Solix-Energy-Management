@@ -59,19 +59,23 @@ def _state_float(hass: HomeAssistant, entity_id: str | None) -> float | None:
         return None
 
 
-@dataclass
+@dataclass(eq=False)
 class BatteryAdapter:
     """One instance per configured battery. Mirrors the coordinator.data
     dict shape the ported decision modules (power_distribution, pd_controller)
     expect, backed by live Anker entity state instead of Modbus registers.
+
+    `eq=False` keeps the default identity-based __eq__/__hash__ instead of
+    the dataclass-generated field-value-based ones — power_distribution.py
+    uses BatteryAdapter instances as dict keys and in membership checks
+    keyed on "is this the same battery object", not on field equality
+    (which would also break the moment `data` is mutated by refresh()).
     """
 
     hass: HomeAssistant
     config: dict[str, Any]
     data: dict[str, Any] = field(default_factory=dict)
-    _last_mode_write: float = 0.0
     _last_mode_guard_check: float = 0.0
-    _pending_custom_mode_since: float | None = None
 
     @property
     def name(self) -> str:
