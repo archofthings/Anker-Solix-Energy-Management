@@ -1,0 +1,65 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Anker Solix Energy Manager",
+        "description": "Algemene instellingen. Deze integratie leest/schrijft alleen entiteiten die de officiële Anker Solix-integratie al aanbiedt — er wordt geen rechtstreekse verbinding met je batterijen gemaakt.",
+        "data": {
+          "grid_power_sensor": "Netvermogen-sensor (in Watt, + = afname van net / - = teruglevering aan net)",
+          "max_contracted_power_w": "Aansluitwaarde / gecontracteerd vermogen (W)",
+          "min_cycle_interval_s": "Minimaal interval regelcyclus (s)"
+        }
+      },
+      "battery": {
+        "title": "Batterij {index} van {count}",
+        "description": "Entity-ID's van de officiële Anker Solix-integratie voor deze unit.",
+        "data": {
+          "name": "Naam",
+          "operating_mode_entity": "Select-entiteit bedrijfsmodus",
+          "target_grid_power_entity": "Number-entiteit doelvermogen net",
+          "grid_flow_entity": "Select-entiteit netrichting (laden/ontladen)",
+          "soc_entity": "Laadstatus-sensor (SoC)",
+          "device_status_entity": "Apparaatstatus-sensor",
+          "charging_power_entity": "Laadvermogen-sensor",
+          "discharging_power_entity": "Ontlaadvermogen-sensor",
+          "capacity_wh": "Bruikbare capaciteit (Wh)",
+          "max_charge_w": "Maximaal laadvermogen (W)",
+          "max_discharge_w": "Maximaal ontlaadvermogen (W)"
+        }
+      },
+      "features": {
+        "title": "Optionele functies",
+        "description": "Alles hier mag leeg blijven om die functie uitgeschakeld te laten. Voorspellend laden vereist een zonneprognose-sensor (zodat bekend is wanneer zon niet in de verwachte vraag kan voorzien) en, tenzij vaste tijdsblokken worden gebruikt, een prijssensor.",
+        "data": {
+          "solar_power_sensor": "Zonvermogen-sensor (actueel W, voor verbruiksregistratie)",
+          "solar_forecast_remaining_sensor": "Resterende zonneprognose vandaag (kWh, bijv. Solcast/Forecast.Solar)",
+          "ev_charger_1": "Laadpunt 1 vermogen-sensor (optioneel)",
+          "ev_charger_2": "Laadpunt 2 vermogen-sensor (optioneel)",
+          "ev_discharge_block_threshold_w": "Drempel voor blokkeren ontladen tijdens EV-laden (W)",
+          "price_sensor": "Elektriciteitsprijs-sensor (optioneel, voor dynamische/real-time prijsmodi)",
+          "price_forecast_attribute": "Naam prognose-attribuut van prijssensor (optioneel, voor day-ahead vooruitkijken)",
+          "price_cheap_percentile": "Percentiel 'goedkope' prijs",
+          "predictive_charging_enabled": "Voorspellend laden vanaf het net inschakelen",
+          "predictive_charging_mode": "Modus voorspellend laden",
+          "predictive_target_soc": "Doel-laadstatus voorspellend laden (%)",
+          "predictive_coverage_hours": "Dekkingsvenster (uren)",
+          "predictive_charge_power_w": "Laadvermogen voorspellend laden (W)",
+          "fixed_slot_start": "Starttijd vast tijdsblok (alleen gebruikt bij modus 'vaste tijdsblokken')",
+          "fixed_slot_end": "Eindtijd vast tijdsblok (alleen gebruikt bij modus 'vaste tijdsblokken')"
+        }
+      }
+    },
+    "error": {
+      "predictive_needs_solar_forecast": "Voorspellend laden vereist een geconfigureerde zonneprognose-sensor.",
+      "predictive_needs_price_sensor": "Deze modus voor voorspellend laden vereist een geconfigureerde prijssensor.",
+      "predictive_needs_fixed_slot": "De modus 'vaste tijdsblokken' vereist zowel een start- als een eindtijd.",
+      "battery_name_required": "Batterijnaam mag niet leeg zijn.",
+      "battery_name_duplicate": "Deze naam wordt al gebruikt door de andere batterij — batterijnamen moeten uniek zijn.",
+      "battery_entity_duplicate": "Een of meer entiteiten zijn al geselecteerd voor de andere batterij — elke batterij heeft eigen entiteiten nodig."
+    },
+    "abort": {
+      "already_configured": "Anker Solix Energy Manager is al geconfigureerd.",
+      "reconfigure_successful": "Instellingen bijgewerkt. De integratie is opnieuw geladen met de nieuwe configuratie."
+    }
+  }
+}
