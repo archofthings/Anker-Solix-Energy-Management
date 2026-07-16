@@ -4,3 +4,4 @@ __pycache__/
 .venv-test/
 .pytest_cache/
 *.egg-info/
+.claude/

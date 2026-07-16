@@ -203,8 +203,10 @@ This repo carries the structure HACS validates for an "integration" category
 repository: `hacs.json`, a `manifest.json` with the required fields
 (`domain`, `name`, `codeowners`, `documentation`, `issue_tracker`, `version`,
 `config_flow`), a top-level `README.md` (shown in HACS via
-`render_readme: true`), a `LICENSE`, and `.github/workflows/hacs.yml` +
-`hassfest.yml` to validate both on every push/PR.
+`render_readme: true`), a `LICENSE`, a repo-local brand icon (see below), and
+`.github/workflows/hacs.yml` + `hassfest.yml` to validate all of it on every
+push/PR — confirmed against a real failing run of `hacs.yml`, not just
+inferred from docs (see "HACS validation status" below).
 
 **To install today:** HACS → Integrations → ⋮ menu → **Custom repositories**
 → paste this repo's URL → category **Integration** → install. It won't show
@@ -214,13 +216,39 @@ tagged GitHub Release and a submission PR to
 whenever this is ready to publish more broadly, not something achievable
 from commits alone.
 
-**Still manual, GitHub-side, not git-controllable:** the repository
-description and topics (adding the `home-assistant` topic helps discovery)
-under the repo's Settings — worth setting before requesting default-list
-inclusion. An icon/logo submission to
-[home-assistant/brands](https://github.com/home-assistant/brands) is
-optional and only affects how the integration's tile looks in HA's UI, not
-whether it installs.
+**Brand icon:** `custom_components/anker_solix_energy_manager/brand/`
+contains an original icon (`icon.png` 256×256, `icon@2x.png` 512×512) and a
+wordmark (`logo.png`) — HACS checks this repo-local path *before* falling
+back to the centralized [home-assistant/brands](https://github.com/home-assistant/brands)
+repo, so no external PR is needed for the icon to show up in HACS/the
+integration tile. Design is original (two paired battery glyphs + a
+connecting arc + a lightning-bolt accent, deep teal/amber) — deliberately
+**not** Anker's own logo or color scheme, since this is an unofficial,
+community integration and shouldn't imply Anker endorsement.
+
+**Still manual, GitHub-side, not git-controllable — a real `hacs.yml` run
+against this repo failed on exactly these two:**
+- **Repository description** is empty → set one under the repo's ⚙️ (top of
+  the GitHub page, next to "About"), e.g. *"Home Assistant integration for
+  zero-export grid control across paired Anker Solix Solarbank Max AC
+  batteries."*
+- **Repository topics** are empty → add some in that same ⚙️ panel, at
+  minimum `home-assistant` (HACS checks for this specifically); also useful:
+  `hacs`, `hacs-integration`, `anker`, `solix`, `energy-management`,
+  `battery`, `home-automation`.
+
+Both take under a minute in the GitHub UI and just need re-running the
+`HACS Validation` workflow afterward (or wait for its next scheduled run) to
+confirm green.
+
+### HACS validation status
+
+A real run of `.github/workflows/hacs.yml` against this repo reported 3/9
+checks failing: **brands** (fixed by the repo-local icon above), **topics**,
+and **description** (both fixed by the GitHub-side steps above — not
+something I can set from here). It also logged a Node.js 20 deprecation
+warning on `actions/checkout@v4`; that's just a GitHub Actions runner notice,
+non-blocking, and not something to act on yet.
 
 ## Provenance and licensing note
 
