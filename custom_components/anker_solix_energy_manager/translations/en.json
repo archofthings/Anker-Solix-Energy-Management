@@ -22,6 +22,8 @@
           "device_status_entity": "Device status sensor",
           "charging_power_entity": "Charging power sensor",
           "discharging_power_entity": "Discharging power sensor",
+          "charge_limit_entity": "Charge limit number entity (optional, % SOC — the battery's own \"don't charge above X%\" setting)",
+          "discharge_limit_entity": "Discharge limit number entity (optional, % SOC — the battery's own \"don't discharge below Y%\" setting)",
           "capacity_wh": "Usable capacity (Wh)",
           "max_charge_w": "Max charge power (W)",
           "max_discharge_w": "Max discharge power (W)"

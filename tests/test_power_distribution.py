@@ -7,11 +7,25 @@ from custom_components.anker_solix_energy_manager.power_distribution import Powe
 
 
 class FakeBattery:
-    def __init__(self, name, max_charge_w=3500, max_discharge_w=3500, soc=50.0, available=True):
+    def __init__(
+        self,
+        name,
+        max_charge_w=3500,
+        max_discharge_w=3500,
+        soc=50.0,
+        available=True,
+        charge_limit_soc=100.0,
+        discharge_limit_soc=0.0,
+    ):
         self.name = name
         self.max_charge_w = max_charge_w
         self.max_discharge_w = max_discharge_w
-        self.data = {"available": available, "battery_soc": soc}
+        self.data = {
+            "available": available,
+            "battery_soc": soc,
+            "charge_limit_soc": charge_limit_soc,
+            "discharge_limit_soc": discharge_limit_soc,
+        }
 
 
 def test_available_batteries_excludes_unavailable():
@@ -34,6 +48,34 @@ def test_available_batteries_excludes_empty_battery_from_discharging():
     b = FakeBattery("B", soc=50.0)
     pd = PowerDistribution(batteries=[a, b])
     assert a not in pd.available_batteries(is_charging=False)
+    assert a in pd.available_batteries(is_charging=True)
+
+
+def test_available_batteries_respects_configured_charge_limit_soc():
+    # Battery's own "don't charge above 80%" longevity setting must be
+    # honored even though 80% is well below the physical 100% ceiling.
+    a = FakeBattery("A", soc=85.0, charge_limit_soc=80.0)
+    b = FakeBattery("B", soc=85.0, charge_limit_soc=100.0)
+    pd = PowerDistribution(batteries=[a, b])
+    available = pd.available_batteries(is_charging=True)
+    assert a not in available
+    assert b in available
+
+
+def test_available_batteries_respects_configured_discharge_limit_soc():
+    # Battery's own "don't discharge below 20%" longevity setting must be
+    # honored even though 20% is well above the physical 0% floor.
+    a = FakeBattery("A", soc=15.0, discharge_limit_soc=20.0)
+    b = FakeBattery("B", soc=15.0, discharge_limit_soc=0.0)
+    pd = PowerDistribution(batteries=[a, b])
+    available = pd.available_batteries(is_charging=False)
+    assert a not in available
+    assert b in available
+
+
+def test_available_batteries_charge_limit_soc_below_soc_still_allows_charging():
+    a = FakeBattery("A", soc=50.0, charge_limit_soc=80.0)
+    pd = PowerDistribution(batteries=[a])
     assert a in pd.available_batteries(is_charging=True)
 
 

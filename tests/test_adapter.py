@@ -5,8 +5,10 @@ reading hass.states and calling hass.services.
 from custom_components.anker_solix_energy_manager.adapter import BatteryAdapter
 from custom_components.anker_solix_energy_manager.const import (
     BATTERY_CAPACITY_WH,
+    BATTERY_CHARGE_LIMIT_ENTITY,
     BATTERY_CHARGING_POWER_ENTITY,
     BATTERY_DEVICE_STATUS_ENTITY,
+    BATTERY_DISCHARGE_LIMIT_ENTITY,
     BATTERY_DISCHARGING_POWER_ENTITY,
     BATTERY_GRID_FLOW_ENTITY,
     BATTERY_MAX_CHARGE_W,
@@ -15,6 +17,8 @@ from custom_components.anker_solix_energy_manager.const import (
     BATTERY_OPERATING_MODE_ENTITY,
     BATTERY_SOC_ENTITY,
     BATTERY_TARGET_GRID_POWER_ENTITY,
+    DEFAULT_CHARGE_LIMIT_SOC,
+    DEFAULT_DISCHARGE_LIMIT_SOC,
     MODE_CUSTOM,
     MODE_THIRD_PARTY_CONTROL,
 )
@@ -66,6 +70,52 @@ async def test_refresh_available_when_everything_present(hass):
     battery.refresh()
     assert battery.data["available"] is True
     assert battery.data["battery_soc"] == 50.0
+
+
+async def test_refresh_charge_discharge_limits_default_when_not_configured(hass):
+    # No charge_limit_entity/discharge_limit_entity in _CONFIG at all.
+    _set_full_state(hass)
+    battery = BatteryAdapter(hass=hass, config=_CONFIG)
+    battery.refresh()
+    assert battery.data["charge_limit_soc"] == DEFAULT_CHARGE_LIMIT_SOC
+    assert battery.data["discharge_limit_soc"] == DEFAULT_DISCHARGE_LIMIT_SOC
+
+
+async def test_refresh_reads_configured_charge_discharge_limits(hass):
+    config = {
+        **_CONFIG,
+        BATTERY_CHARGE_LIMIT_ENTITY: "number.batt_charge_limit",
+        BATTERY_DISCHARGE_LIMIT_ENTITY: "number.batt_discharge_limit",
+    }
+    _set_full_state(hass)
+    hass.states.async_set("number.batt_charge_limit", "85")
+    hass.states.async_set("number.batt_discharge_limit", "15")
+
+    battery = BatteryAdapter(hass=hass, config=config)
+    battery.refresh()
+
+    assert battery.data["charge_limit_soc"] == 85.0
+    assert battery.data["discharge_limit_soc"] == 15.0
+
+
+async def test_refresh_charge_discharge_limits_fall_back_when_entity_unavailable(hass):
+    # Configured, but the entity itself currently has no readable state —
+    # must fall back to the permissive default, not block charge/discharge
+    # outright over a transient sensor hiccup.
+    config = {
+        **_CONFIG,
+        BATTERY_CHARGE_LIMIT_ENTITY: "number.batt_charge_limit",
+        BATTERY_DISCHARGE_LIMIT_ENTITY: "number.batt_discharge_limit",
+    }
+    _set_full_state(hass)
+    hass.states.async_set("number.batt_charge_limit", "unavailable")
+    hass.states.async_set("number.batt_discharge_limit", "unknown")
+
+    battery = BatteryAdapter(hass=hass, config=config)
+    battery.refresh()
+
+    assert battery.data["charge_limit_soc"] == DEFAULT_CHARGE_LIMIT_SOC
+    assert battery.data["discharge_limit_soc"] == DEFAULT_DISCHARGE_LIMIT_SOC
 
 
 async def test_refresh_unavailable_when_charging_power_sensor_missing(hass):

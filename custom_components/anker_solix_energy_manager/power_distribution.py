@@ -46,15 +46,21 @@ class PowerDistribution:
     _discharge_hold_until: dict[str, float] = field(default_factory=dict)
 
     def available_batteries(self, is_charging: bool) -> list[BatteryAdapter]:
-        """Batteries that are online and have headroom in the requested direction."""
+        """Batteries that are online and have headroom in the requested
+        direction — respecting each battery's own configured charge/
+        discharge SOC limit (its longevity setting, e.g. "don't charge
+        above 90%") in addition to the physical 0/100% bounds, so this
+        control loop never pushes a battery past a limit its owner set
+        specifically to protect it.
+        """
         result = []
         for b in self.batteries:
             if not b.data.get("available", False):
                 continue
             soc = b.data.get("battery_soc", 50.0)
-            if is_charging and soc >= 100:
+            if is_charging and soc >= b.data.get("charge_limit_soc", 100.0):
                 continue
-            if not is_charging and soc <= 0:
+            if not is_charging and soc <= b.data.get("discharge_limit_soc", 0.0):
                 continue
             if _battery_limit(b, is_charging) <= 0:
                 continue

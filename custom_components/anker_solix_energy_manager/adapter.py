@@ -25,8 +25,10 @@ from .const import (
     ANKER_TARGET_GRID_POWER_FLOOR_W,
     ANKER_TARGET_GRID_POWER_MAX_W,
     BATTERY_CAPACITY_WH,
+    BATTERY_CHARGE_LIMIT_ENTITY,
     BATTERY_CHARGING_POWER_ENTITY,
     BATTERY_DEVICE_STATUS_ENTITY,
+    BATTERY_DISCHARGE_LIMIT_ENTITY,
     BATTERY_DISCHARGING_POWER_ENTITY,
     BATTERY_GRID_FLOW_ENTITY,
     BATTERY_MAX_CHARGE_W,
@@ -35,6 +37,8 @@ from .const import (
     BATTERY_OPERATING_MODE_ENTITY,
     BATTERY_SOC_ENTITY,
     BATTERY_TARGET_GRID_POWER_ENTITY,
+    DEFAULT_CHARGE_LIMIT_SOC,
+    DEFAULT_DISCHARGE_LIMIT_SOC,
     GRID_FLOW_CHARGE,
     GRID_FLOW_DISCHARGE,
     MODE_CUSTOM,
@@ -113,6 +117,14 @@ class BatteryAdapter:
         status_state = hass.states.get(cfg.get(BATTERY_DEVICE_STATUS_ENTITY) or "")
         mode_state = hass.states.get(cfg.get(BATTERY_OPERATING_MODE_ENTITY) or "")
 
+        # Optional: the battery's own configured charge/discharge SOC-limit
+        # entities. Not configured, or currently unreadable, falls back to
+        # the permissive default (no restriction beyond the physical 0/100%
+        # bounds) rather than blocking charge/discharge outright — the same
+        # behavior as before this was configurable at all.
+        charge_limit_soc = _state_float(hass, cfg.get(BATTERY_CHARGE_LIMIT_ENTITY))
+        discharge_limit_soc = _state_float(hass, cfg.get(BATTERY_DISCHARGE_LIMIT_ENTITY))
+
         charging_power = charging_power_raw or 0.0
         discharging_power = discharging_power_raw or 0.0
 
@@ -124,6 +136,8 @@ class BatteryAdapter:
             "measured_power": charging_power - discharging_power,
             "device_status": status_state.state if status_state else None,
             "operating_mode": mode_state.state if mode_state else None,
+            "charge_limit_soc": charge_limit_soc if charge_limit_soc is not None else DEFAULT_CHARGE_LIMIT_SOC,
+            "discharge_limit_soc": discharge_limit_soc if discharge_limit_soc is not None else DEFAULT_DISCHARGE_LIMIT_SOC,
             # A missing/unavailable charging or discharging power sensor must
             # NOT silently read as "0W measured" — that would feed a false
             # reading straight into the PD anti-windup re-anchor logic

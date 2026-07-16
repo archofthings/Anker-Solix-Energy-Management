@@ -10,7 +10,8 @@ run against real hardware yet, so treat this as a pre-release.
   with the third-party-control mode-revert quirk guard.
 - Incremental PD zero-export controller with EMA filtering, rate limiting,
   direction hysteresis, deadband, and anti-windup.
-- Two-battery load sharing (SOC-ordered selection + proportional allocation).
+- Two-battery load sharing (SOC-ordered selection + proportional allocation),
+  respecting each battery's own configured charge/discharge SOC limit if set.
 - Capacity protection safety backstop.
 - Derived consumption tracking, EV-session load exclusion.
 - Predictive/scheduled grid charging (fixed slots, reactive real-time
@@ -25,7 +26,7 @@ run against real hardware yet, so treat this as a pre-release.
 - English and Dutch translations.
 - GPL-3.0 licensed, HACS-installable (custom repository), repo-local brand
   icon.
-- 96-test pytest suite, including end-to-end control-cycle and config-flow
+- 102-test pytest suite, including end-to-end control-cycle and config-flow
   tests against a real (test) Home Assistant instance. A dedicated
   safety/correctness review pass fixed several issues found this way before
   any reached real hardware — see the README's Testing section for details.

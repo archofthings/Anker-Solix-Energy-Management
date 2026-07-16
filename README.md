@@ -96,7 +96,7 @@ setting automatically).
 
 ## Testing
 
-A 96-test pytest suite covers the pure control-logic modules directly, the
+A 102-test pytest suite covers the pure control-logic modules directly, the
 adapter's entity read/write seam (mode-guard, the direction-flip write
 ordering, no-op write avoidance), the config flow (setup validation, and
 the reconfigure flow end-to-end, including that it actually updates and
@@ -170,7 +170,11 @@ schema — see the pricing note below).
   via saturation back-calculation against measured battery power.
 - Two-battery load sharing: SOC-ordered selection with hysteresis (prefer one
   active unit below a crossover wattage, split above it) and proportional
-  power allocation capped at each unit's limit.
+  power allocation capped at each unit's limit — and, per battery, capped at
+  its own configured charge/discharge SOC limit (the "don't charge above
+  X% / don't discharge below Y%" longevity setting), not just the physical
+  0/100% bounds, if you've set one via the optional `charge_limit_entity` /
+  `discharge_limit_entity` fields.
 - Capacity protection: a hard backstop, applied every cycle regardless of
   which decision path produced the command, so grid import never exceeds
   the configured contracted power limit.

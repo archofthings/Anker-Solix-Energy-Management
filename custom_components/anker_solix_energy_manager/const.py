@@ -85,13 +85,16 @@ BATTERY_SOC_ENTITY = "soc_entity"  # sensor.*_soc (%)
 BATTERY_DEVICE_STATUS_ENTITY = "device_status_entity"  # sensor.*_device_status
 BATTERY_CHARGING_POWER_ENTITY = "charging_power_entity"  # sensor.*_charging_power (W)
 BATTERY_DISCHARGING_POWER_ENTITY = "discharging_power_entity"  # sensor.*_discharging_power (W)
-# NOTE: earlier drafts also collected charge_limit_entity/discharge_limit_entity
-# (a "number.*_charge_limit" / "max SOC" style optional entity), but nothing
-# in the control loop ever read them, and their exact real-world semantics
-# (SOC percentage vs. a power ceiling in W) were never confirmed against a
-# live Anker entity — wiring a guessed interpretation into SOC-boundary
-# control logic would be worse than not having the feature. Removed rather
-# than shipped as a config option that silently does nothing.
+# Optional, user-confirmed semantics: SOC percentage (0-100), the battery's
+# own "don't charge above X% / don't discharge below Y%" longevity setting
+# (set via the Anker app). Respected as an additional, tighter boundary on
+# top of the physical 0/100% bounds — see power_distribution.py's
+# available_batteries(). Even if the device's own firmware also enforces
+# this independently, third_party_control mode's whole point is that an
+# external controller is now responsible, so this isn't assumed to be a
+# redundant belt-and-braces check.
+BATTERY_CHARGE_LIMIT_ENTITY = "charge_limit_entity"  # number.*_charge_limit, max SOC % (optional)
+BATTERY_DISCHARGE_LIMIT_ENTITY = "discharge_limit_entity"  # number.*_discharge_limit, min SOC % (optional)
 BATTERY_CAPACITY_WH = "capacity_wh"
 BATTERY_MAX_CHARGE_W = "max_charge_w"
 BATTERY_MAX_DISCHARGE_W = "max_discharge_w"
@@ -100,6 +103,12 @@ BATTERY_MAX_DISCHARGE_W = "max_discharge_w"
 # always overridable per unit).
 DEFAULT_BATTERY_CAPACITY_WH = 7000
 DEFAULT_BATTERY_MAX_POWER_W = 3500
+
+# Fallback charge/discharge SOC limits (%) used when charge_limit_entity /
+# discharge_limit_entity aren't configured, or are temporarily unreadable —
+# i.e. no additional restriction beyond the physical 0/100% bounds.
+DEFAULT_CHARGE_LIMIT_SOC = 100.0
+DEFAULT_DISCHARGE_LIMIT_SOC = 5.0
 
 # Anker `number.*_target_grid_power` accepts 0, or 100-3500. Values below the
 # floor are not meaningful setpoints and are treated as "idle" by the adapter.

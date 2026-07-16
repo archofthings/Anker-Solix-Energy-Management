@@ -22,6 +22,8 @@
           "device_status_entity": "Apparaatstatus-sensor",
           "charging_power_entity": "Laadvermogen-sensor",
           "discharging_power_entity": "Ontlaadvermogen-sensor",
+          "charge_limit_entity": "Number-entiteit laadlimiet (optioneel, % SoC — de eigen \"niet boven X% laden\"-instelling van de batterij)",
+          "discharge_limit_entity": "Number-entiteit ontlaadlimiet (optioneel, % SoC — de eigen \"niet onder Y% ontladen\"-instelling van de batterij)",
           "capacity_wh": "Bruikbare capaciteit (Wh)",
           "max_charge_w": "Maximaal laadvermogen (W)",
           "max_discharge_w": "Maximaal ontlaadvermogen (W)"

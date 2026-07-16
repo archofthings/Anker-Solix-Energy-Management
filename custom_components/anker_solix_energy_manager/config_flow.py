@@ -24,8 +24,10 @@ from homeassistant.helpers import selector
 
 from .const import (
     BATTERY_CAPACITY_WH,
+    BATTERY_CHARGE_LIMIT_ENTITY,
     BATTERY_CHARGING_POWER_ENTITY,
     BATTERY_DEVICE_STATUS_ENTITY,
+    BATTERY_DISCHARGE_LIMIT_ENTITY,
     BATTERY_DISCHARGING_POWER_ENTITY,
     BATTERY_GRID_FLOW_ENTITY,
     BATTERY_MAX_CHARGE_W,
@@ -76,6 +78,8 @@ _BATTERY_ENTITY_FIELDS = (
     BATTERY_DEVICE_STATUS_ENTITY,
     BATTERY_CHARGING_POWER_ENTITY,
     BATTERY_DISCHARGING_POWER_ENTITY,
+    BATTERY_CHARGE_LIMIT_ENTITY,
+    BATTERY_DISCHARGE_LIMIT_ENTITY,
 )
 
 
@@ -83,6 +87,17 @@ def _power_number(*, min_value: float = 0) -> selector.NumberSelector:
     return selector.NumberSelector(
         selector.NumberSelectorConfig(min=min_value, max=20000, step=1, unit_of_measurement="W", mode=selector.NumberSelectorMode.BOX)
     )
+
+
+def _opt(key: str, value):
+    # A plain vol.Optional(key) — no `default` kwarg at all — leaves a key
+    # missing from submitted input un-validated and absent from the result,
+    # which is what an unfilled optional field needs. Passing `default=None`
+    # instead makes voluptuous inject and then *validate* that None through
+    # the field's selector, which most selectors (e.g. EntitySelector)
+    # reject outright — so only add a default when there's a genuine value
+    # to pre-fill (e.g. reconfiguring with something already set).
+    return vol.Optional(key, default=value) if value else vol.Optional(key)
 
 
 class AnkerSolixEnergyManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -145,10 +160,14 @@ class AnkerSolixEnergyManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN
         if user_input is not None:
             name = user_input[BATTERY_NAME].strip()
             other_names = {b[BATTERY_NAME].strip().lower() for b in self._batteries}
-            entity_ids = {user_input[f] for f in _BATTERY_ENTITY_FIELDS}
+            # .get(..) + filter None: the charge/discharge limit entities are
+            # optional, so unlike the other (Required) fields here, both
+            # batteries legitimately having "not configured" must not be
+            # treated as a duplicate-selection match.
+            entity_ids = {user_input.get(f) for f in _BATTERY_ENTITY_FIELDS} - {None}
             other_entity_ids: set[str] = set()
             for b in self._batteries:
-                other_entity_ids.update(b[f] for f in _BATTERY_ENTITY_FIELDS)
+                other_entity_ids.update(v for f in _BATTERY_ENTITY_FIELDS if (v := b.get(f)) is not None)
 
             if not name:
                 errors["base"] = "battery_name_required"
@@ -166,6 +185,8 @@ class AnkerSolixEnergyManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN
                     BATTERY_DEVICE_STATUS_ENTITY: user_input[BATTERY_DEVICE_STATUS_ENTITY],
                     BATTERY_CHARGING_POWER_ENTITY: user_input[BATTERY_CHARGING_POWER_ENTITY],
                     BATTERY_DISCHARGING_POWER_ENTITY: user_input[BATTERY_DISCHARGING_POWER_ENTITY],
+                    BATTERY_CHARGE_LIMIT_ENTITY: user_input.get(BATTERY_CHARGE_LIMIT_ENTITY),
+                    BATTERY_DISCHARGE_LIMIT_ENTITY: user_input.get(BATTERY_DISCHARGE_LIMIT_ENTITY),
                     BATTERY_CAPACITY_WH: user_input[BATTERY_CAPACITY_WH],
                     BATTERY_MAX_CHARGE_W: user_input[BATTERY_MAX_CHARGE_W],
                     BATTERY_MAX_DISCHARGE_W: user_input[BATTERY_MAX_DISCHARGE_W],
@@ -203,6 +224,12 @@ class AnkerSolixEnergyManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN
                 vol.Required(
                     BATTERY_DISCHARGING_POWER_ENTITY, default=existing.get(BATTERY_DISCHARGING_POWER_ENTITY)
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
+                _opt(BATTERY_CHARGE_LIMIT_ENTITY, existing.get(BATTERY_CHARGE_LIMIT_ENTITY)): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="number")
+                ),
+                _opt(BATTERY_DISCHARGE_LIMIT_ENTITY, existing.get(BATTERY_DISCHARGE_LIMIT_ENTITY)): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="number")
+                ),
                 vol.Required(
                     BATTERY_CAPACITY_WH, default=existing.get(BATTERY_CAPACITY_WH, DEFAULT_BATTERY_CAPACITY_WH)
                 ): _power_number(min_value=100),
@@ -270,18 +297,6 @@ class AnkerSolixEnergyManagerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN
         default_slot_start = current_slots[0]["start"] if current_slots else None
         default_slot_end = current_slots[0]["end"] if current_slots else None
         current_ev_sensors = current.get(CONF_EV_CHARGER_POWER_SENSORS) or []
-
-        def _opt(key, value):
-            # A plain vol.Optional(key) — no `default` kwarg at all — leaves
-            # a key missing from submitted input un-validated and absent
-            # from the result, which is what every one of these fields
-            # needs when there's nothing to pre-fill. Passing
-            # `default=None` instead (e.g. via current.get(key), which
-            # returns None until first configured) makes voluptuous inject
-            # and then *validate* that None through the EntitySelector,
-            # which rejects it — so the default can only be added when
-            # there's a genuine value to pre-fill.
-            return vol.Optional(key, default=value) if value else vol.Optional(key)
 
         schema = vol.Schema(
             {
