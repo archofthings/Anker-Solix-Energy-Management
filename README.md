@@ -197,6 +197,31 @@ been run against a live Home Assistant instance or real batteries yet:
    so it should self-correct within that window even if the exact minute
    mark is slightly different than described.
 
+## Installing via HACS
+
+This repo carries the structure HACS validates for an "integration" category
+repository: `hacs.json`, a `manifest.json` with the required fields
+(`domain`, `name`, `codeowners`, `documentation`, `issue_tracker`, `version`,
+`config_flow`), a top-level `README.md` (shown in HACS via
+`render_readme: true`), a `LICENSE`, and `.github/workflows/hacs.yml` +
+`hassfest.yml` to validate both on every push/PR.
+
+**To install today:** HACS → Integrations → ⋮ menu → **Custom repositories**
+→ paste this repo's URL → category **Integration** → install. It won't show
+up in HACS's default searchable list yet — that requires at least one
+tagged GitHub Release and a submission PR to
+[hacs/default](https://github.com/hacs/default), which is a manual step for
+whenever this is ready to publish more broadly, not something achievable
+from commits alone.
+
+**Still manual, GitHub-side, not git-controllable:** the repository
+description and topics (adding the `home-assistant` topic helps discovery)
+under the repo's Settings — worth setting before requesting default-list
+inclusion. An icon/logo submission to
+[home-assistant/brands](https://github.com/home-assistant/brands) is
+optional and only affects how the integration's tile looks in HA's UI, not
+whether it installs.
+
 ## Provenance and licensing note
 
 The PD control approach and multi-battery load-sharing design here are
@@ -206,10 +231,9 @@ was copied; everything here was written fresh against this project's own
 adapter interface. That project is itself discontinued, with development
 continuing in a successor called "Omnibattery".
 
-Because the control algorithms are *derived from* GPL-3.0-licensed work even
-though no source was copied, you should decide on a license for this repo
-with that in mind (GPL-3.0 is the safest choice if in doubt) rather than
-defaulting to "all rights reserved" — this hasn't been decided yet.
+Licensed under **GPL-3.0** (see `LICENSE`) — chosen specifically because the
+control algorithms are architecturally derived from that GPL-3.0-licensed
+reference project, even though no source was copied.
 
 ## Disclaimer
 

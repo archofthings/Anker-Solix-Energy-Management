@@ -1,0 +1,22 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # 3.14 currently has fixture-resolution incompatibilities with the
+          # pytest/pytest-asyncio versions pytest-homeassistant-custom-component
+          # pins — see README's Testing section. Use 3.13 until that's resolved.
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: pip install -r requirements-test.txt
+      - name: Run tests
+        run: pytest tests/ -v
