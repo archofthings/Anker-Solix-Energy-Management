@@ -17,5 +17,15 @@ run against real hardware yet, so treat this as a pre-release.
   pricing, optional day-ahead forecast lookahead).
 - Live PD tuning entities, diagnostic sensors, manual-mode and predictive-
   charging kill switches.
-- 59-test pytest suite, including end-to-end control-cycle tests against a
-  real (test) Home Assistant instance.
+- Reconfigure flow: fix a mistake or update a sensor/battery entity without
+  removing and re-adding the integration.
+- Config flow validation: non-empty/unique battery names, no accidental
+  duplicate entity selection between the two batteries, fixed-slot mode
+  requires an actual slot.
+- English and Dutch translations.
+- GPL-3.0 licensed, HACS-installable (custom repository), repo-local brand
+  icon.
+- 96-test pytest suite, including end-to-end control-cycle and config-flow
+  tests against a real (test) Home Assistant instance. A dedicated
+  safety/correctness review pass fixed several issues found this way before
+  any reached real hardware — see the README's Testing section for details.

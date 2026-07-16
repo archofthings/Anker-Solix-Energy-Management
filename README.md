@@ -96,13 +96,15 @@ setting automatically).
 
 ## Testing
 
-An 85-test pytest suite covers the pure control-logic modules directly,
-the config flow (setup validation, and the reconfigure flow end-to-end,
-including that it actually updates and reloads the entry), and exercises
-the real control-loop wiring (adapter → PD → power distribution → capacity
-protection → the actual `number`/`select` service calls) through
-`pytest-homeassistant-custom-component`'s `hass` fixture — this is a real,
-if minimal, Home Assistant core instance, not a hand-rolled mock of one.
+A 96-test pytest suite covers the pure control-logic modules directly, the
+adapter's entity read/write seam (mode-guard, the direction-flip write
+ordering, no-op write avoidance), the config flow (setup validation, and
+the reconfigure flow end-to-end, including that it actually updates and
+reloads the entry), and exercises the real control-loop wiring (adapter →
+PD → power distribution → capacity protection → the actual `number`/`select`
+service calls) through `pytest-homeassistant-custom-component`'s `hass`
+fixture — this is a real, if minimal, Home Assistant core instance, not a
+hand-rolled mock of one.
 
 ```bash
 python3 -m venv .venv-test && source .venv-test/bin/activate
@@ -235,6 +237,11 @@ repository: `hacs.json`, a `manifest.json` with the required fields
 `.github/workflows/hacs.yml` + `hassfest.yml` to validate all of it on every
 push/PR — confirmed against a real failing run of `hacs.yml`, not just
 inferred from docs (see "HACS validation status" below).
+
+`hacs.json` declares a minimum Home Assistant version of **2024.11.0** —
+bumped from an earlier, less-certain 2024.4.1 once the config flow started
+using `async_step_reconfigure`/`async_update_reload_and_abort`, which need a
+version that actually ships that API.
 
 **To install today:** HACS → Integrations → ⋮ menu → **Custom repositories**
 → paste this repo's URL → category **Integration** → install. It won't show
