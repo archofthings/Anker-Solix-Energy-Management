@@ -24,6 +24,46 @@ DEFAULT_MIN_CYCLE_INTERVAL = 2.0
 DEFAULT_MAX_CONTRACTED_POWER = 5750  # 3-phase 25A-ish default; user must confirm breaker rating
 
 # ---------------------------------------------------------------------------
+# Config entry keys — Phase 2 optional features (all off unless configured)
+# ---------------------------------------------------------------------------
+CONF_SOLAR_POWER_SENSOR = "solar_power_sensor"  # instantaneous W, feeds consumption_tracker
+CONF_SOLAR_FORECAST_REMAINING_SENSOR = "solar_forecast_remaining_sensor"  # kWh remaining today (Solcast/Forecast.Solar)
+CONF_EV_CHARGER_POWER_SENSORS = "ev_charger_power_sensors"  # list[str], 0-2 entity_ids
+CONF_EV_DISCHARGE_BLOCK_THRESHOLD_W = "ev_discharge_block_threshold_w"
+
+DEFAULT_EV_DISCHARGE_BLOCK_THRESHOLD_W = 1000
+
+CONF_PRICE_SENSOR = "price_sensor"
+CONF_PRICE_FORECAST_ATTRIBUTE = "price_forecast_attribute"  # optional dotted attr holding hourly forecast
+CONF_PRICE_CHEAP_PERCENTILE = "price_cheap_percentile"
+
+DEFAULT_PRICE_CHEAP_PERCENTILE = 30  # cheapest 30% of the trailing 24h window counts as "cheap"
+PRICE_MIN_SAMPLES_BEFORE_ACTIVE = 20  # don't gate charging on a percentile computed from noise
+
+CONF_PREDICTIVE_CHARGING_ENABLED = "predictive_charging_enabled"
+CONF_PREDICTIVE_CHARGING_MODE = "predictive_charging_mode"
+CONF_PREDICTIVE_TARGET_SOC = "predictive_target_soc"
+CONF_PREDICTIVE_COVERAGE_HOURS = "predictive_coverage_hours"
+CONF_PREDICTIVE_FIXED_SLOTS = "predictive_fixed_slots"  # list[{"start": "HH:MM", "end": "HH:MM"}]
+CONF_PREDICTIVE_CHARGE_POWER_W = "predictive_charge_power_w"
+
+PREDICTIVE_MODE_FIXED_SLOTS = "fixed_time_slots"
+PREDICTIVE_MODE_DYNAMIC_PRICING = "dynamic_pricing"
+PREDICTIVE_MODE_REALTIME_PRICE = "realtime_price"
+PREDICTIVE_MODE_OPTIONS = [PREDICTIVE_MODE_FIXED_SLOTS, PREDICTIVE_MODE_DYNAMIC_PRICING, PREDICTIVE_MODE_REALTIME_PRICE]
+
+DEFAULT_PREDICTIVE_TARGET_SOC = 80
+DEFAULT_PREDICTIVE_COVERAGE_HOURS = 8.0
+DEFAULT_PREDICTIVE_CHARGE_POWER_W = 1500
+
+# Consumption tracker
+CONSUMPTION_HISTORY_DAYS = 7
+CONSUMPTION_STORE_VERSION = 1
+CONSUMPTION_STORE_KEY = f"{DOMAIN}_consumption_history"
+# Sane fallback average (kWh/day) used only until enough real history accumulates.
+DEFAULT_FALLBACK_DAILY_CONSUMPTION_KWH = 15.0
+
+# ---------------------------------------------------------------------------
 # Per-battery entity keys (one dict per battery in CONF_BATTERIES)
 # ---------------------------------------------------------------------------
 BATTERY_NAME = "name"
