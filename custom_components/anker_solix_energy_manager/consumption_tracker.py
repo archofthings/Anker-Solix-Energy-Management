@@ -20,6 +20,7 @@ trailing window, so predictive charging has a "how much will we use" signal.
 from __future__ import annotations
 
 import logging
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import date
@@ -62,6 +63,7 @@ class ConsumptionTracker:
     history_kwh: deque[float] = field(default_factory=lambda: deque(maxlen=CONSUMPTION_HISTORY_DAYS))
     _store: Store | None = field(default=None, init=False)
     _dirty: bool = field(default=False, init=False)
+    _last_save_monotonic: float = field(default=0.0, init=False)
 
     def __post_init__(self) -> None:
         self._store = Store(self.hass, CONSUMPTION_STORE_VERSION, f"{CONSUMPTION_STORE_KEY}_{self.entry_id}")
@@ -78,8 +80,14 @@ class ConsumptionTracker:
         except (TypeError, ValueError) as err:
             _LOGGER.warning("Could not parse stored consumption history, starting fresh: %s", err)
 
-    async def async_save(self) -> None:
+    async def async_save(self, *, force: bool = False) -> None:
+        """Debounced write: `accumulate()` marks state dirty every cycle, but
+        writing to disk that often would be excessive. Only actually persist
+        every 5 minutes (or immediately when `force=True`, e.g. on unload or
+        a day rollover)."""
         if not self._dirty:
+            return
+        if not force and (time.monotonic() - self._last_save_monotonic) < 300:
             return
         await self._store.async_save(
             {
@@ -89,6 +97,7 @@ class ConsumptionTracker:
             }
         )
         self._dirty = False
+        self._last_save_monotonic = time.monotonic()
 
     def _current_home_power_w(self, battery_net_charge_w: float) -> float | None:
         grid_w = _state_float(self.hass, self.grid_power_sensor)

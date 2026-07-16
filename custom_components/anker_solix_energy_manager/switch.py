@@ -45,6 +45,37 @@ class ManualModeSwitch(SwitchEntity):
         self.async_write_ha_state()
 
 
+class PredictiveChargingEnabledSwitch(SwitchEntity):
+    """Runtime kill switch for predictive charging, independent of manual
+    mode — lets you disable scheduled/priced grid charging while keeping
+    normal zero-export PD control running."""
+
+    _attr_icon = "mdi:battery-clock"
+
+    def __init__(self, controller: EnergyManagerController, entry: ConfigEntry) -> None:
+        self._controller = controller
+        self._attr_name = "Predictive Charging Enabled"
+        self._attr_unique_id = f"{entry.entry_id}_predictive_charging_enabled"
+        self._attr_device_info = _device_info(entry)
+
+    @property
+    def is_on(self) -> bool:
+        return self._controller.predictive_charging.enabled
+
+    async def async_turn_on(self, **kwargs) -> None:
+        self._controller.predictive_charging.enabled = True
+        self.async_write_ha_state()
+
+    async def async_turn_off(self, **kwargs) -> None:
+        self._controller.predictive_charging.enabled = False
+        self._controller.predictive_charging_active = False
+        self._controller.predictive_charging_reason = "disabled"
+        self.async_write_ha_state()
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     controller: EnergyManagerController = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([ManualModeSwitch(controller, entry)])
+    entities: list[SwitchEntity] = [ManualModeSwitch(controller, entry)]
+    if controller.predictive_charging is not None:
+        entities.append(PredictiveChargingEnabledSwitch(controller, entry))
+    async_add_entities(entities)

@@ -125,7 +125,15 @@ class PredictiveChargingManager:
         threshold_prices = sorted(p for _, p in forecast)
         idx = max(0, min(len(threshold_prices) - 1, round(len(threshold_prices) * self.price_tracker.cheap_percentile / 100.0) - 1))
         threshold = threshold_prices[idx]
-        current_hour_entries = [p for start, p in forecast if start <= now < start.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)]
+        try:
+            now_utc = dt_util.as_utc(now)
+            current_hour_entries = [
+                p for start, p in forecast
+                if dt_util.as_utc(start) <= now_utc < dt_util.as_utc(start).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+            ]
+        except (TypeError, ValueError) as err:
+            _LOGGER.warning("Price forecast timestamps not comparable to current time: %s", err)
+            return False, "forecast timestamps not comparable"
         if not current_hour_entries:
             return False, "no forecast entry for current hour"
         return current_hour_entries[0] <= threshold, "forecast lookahead"

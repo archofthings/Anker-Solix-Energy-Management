@@ -28,7 +28,32 @@
           "max_charge_w": "Max charge power (W)",
           "max_discharge_w": "Max discharge power (W)"
         }
+      },
+      "features": {
+        "title": "Optional features",
+        "description": "Everything here can be left blank to keep that feature disabled. Predictive charging requires a solar forecast sensor (so it knows when solar can't cover expected demand) and, unless using fixed time slots, a price sensor.",
+        "data": {
+          "solar_power_sensor": "Solar power sensor (instantaneous W, for consumption tracking)",
+          "solar_forecast_remaining_sensor": "Solar forecast remaining today (kWh, e.g. Solcast/Forecast.Solar)",
+          "ev_charger_1": "EV charger 1 power sensor (optional)",
+          "ev_charger_2": "EV charger 2 power sensor (optional)",
+          "ev_discharge_block_threshold_w": "EV discharge block threshold (W)",
+          "price_sensor": "Electricity price sensor (optional, for dynamic/real-time pricing modes)",
+          "price_forecast_attribute": "Price sensor forecast attribute name (optional, for day-ahead lookahead)",
+          "price_cheap_percentile": "Cheap price percentile",
+          "predictive_charging_enabled": "Enable predictive grid charging",
+          "predictive_charging_mode": "Predictive charging mode",
+          "predictive_target_soc": "Predictive charging target SOC (%)",
+          "predictive_coverage_hours": "Coverage window (hours)",
+          "predictive_charge_power_w": "Predictive charge power (W)",
+          "fixed_slot_start": "Fixed slot start (only used in fixed_time_slots mode)",
+          "fixed_slot_end": "Fixed slot end (only used in fixed_time_slots mode)"
+        }
       }
+    },
+    "error": {
+      "predictive_needs_solar_forecast": "Predictive charging requires a solar forecast sensor to be configured.",
+      "predictive_needs_price_sensor": "This predictive charging mode requires a price sensor to be configured."
     },
     "abort": {
       "already_configured": "Anker Solix Energy Manager is already configured."

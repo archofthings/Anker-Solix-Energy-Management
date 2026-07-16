@@ -97,6 +97,62 @@ class BatteryAllocationSensor(_BaseSensor):
         return round(self._controller.last_allocation_w.get(self._battery_name, 0))
 
 
+class ConsumptionTodaySensor(_BaseSensor):
+    _attr_native_unit_of_measurement = "kWh"
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_icon = "mdi:home-lightning-bolt"
+
+    @property
+    def native_value(self):
+        return self._controller.consumption_tracker.today_kwh
+
+
+class ConsumptionAverageDailySensor(_BaseSensor):
+    _attr_native_unit_of_measurement = "kWh"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:chart-line"
+
+    @property
+    def native_value(self):
+        return round(self._controller.consumption_tracker.average_daily_kwh, 2)
+
+
+class PredictiveChargingStatusSensor(_BaseSensor):
+    _attr_icon = "mdi:transmission-tower-import"
+
+    @property
+    def native_value(self):
+        return "charging" if self._controller.predictive_charging_active else "idle"
+
+    @property
+    def extra_state_attributes(self):
+        return {"reason": self._controller.predictive_charging_reason}
+
+
+class EVChargingPowerSensor(_BaseSensor):
+    _attr_native_unit_of_measurement = "W"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:ev-station"
+
+    @property
+    def native_value(self):
+        return round(self._controller.ev_exclusion.total_ev_power_w())
+
+
+class CurrentPriceSensor(_BaseSensor):
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:currency-eur"
+
+    @property
+    def native_value(self):
+        return self._controller.price_tracker.current_price
+
+    @property
+    def extra_state_attributes(self):
+        return {"is_cheap_now": self._controller.price_tracker.is_cheap_now()}
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     controller: EnergyManagerController = hass.data[DOMAIN][entry.entry_id]
     entities = [
@@ -105,7 +161,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         PDQualityRmsSensor(controller, entry, "pd_rms_error", "PD Control Quality (RMS error)"),
         PDQualityOscillationSensor(controller, entry, "pd_oscillation", "PD Oscillation Rate"),
         ActiveBatteriesSensor(controller, entry, "active_batteries", "Active Batteries"),
+        ConsumptionTodaySensor(controller, entry, "consumption_today", "Consumption Today"),
+        ConsumptionAverageDailySensor(controller, entry, "consumption_avg_daily", "Average Daily Consumption"),
     ]
     for b in controller.batteries:
         entities.append(BatteryAllocationSensor(controller, entry, b.name))
+    if controller.predictive_charging is not None:
+        entities.append(PredictiveChargingStatusSensor(controller, entry, "predictive_charging_status", "Predictive Charging Status"))
+    if controller.ev_exclusion is not None:
+        entities.append(EVChargingPowerSensor(controller, entry, "ev_charging_power", "EV Charging Power"))
+    if controller.price_tracker is not None:
+        entities.append(CurrentPriceSensor(controller, entry, "current_price", "Current Electricity Price"))
     async_add_entities(entities)
